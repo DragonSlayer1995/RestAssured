@@ -2,8 +2,10 @@
 package book;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
@@ -12,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Optional;
 
@@ -23,6 +26,21 @@ public class Application {
 
     public static void main(String[] args) {
         SpringApplication.run(Application.class, args);
+    }
+
+    @Bean
+    CommandLineRunner init(AccountRepository accountRepository,
+                           BookRepository bookRepository) {
+        return (evt) -> Arrays.asList(
+                "jhoeller,dsyer,pwebb,ogierke,rwinch,mfisher,mpollack,jlong".split(","))
+                .forEach(
+                        a -> {
+                            Account account = accountRepository.save(new Account(a,
+                                    "password"));
+                            bookRepository.save(new Book(account,
+                                    "name1" + a, "dmitriy", "description"));
+
+                        });
     }
 
 }
@@ -66,6 +84,17 @@ class UserRestController {
                 .fromCurrentRequest().path("")
                 .buildAndExpand(result.get().getId()).toUri());
         return new ResponseEntity<>(null, httpHeaders, HttpStatus.OK);
+    }
+
+    @RequestMapping(value = "/changeUser/{userId}", method = RequestMethod.PUT)
+    Account changeAccount(@RequestBody Account newAccount, @PathVariable String userId){
+        return this.accountRepository.findByUsername(userId).map(account -> {
+            account.setUsername(newAccount.getUsername());
+            return accountRepository.save(account);
+        }).orElseGet(() ->{
+            newAccount.setUsername(userId);
+            return accountRepository.save(newAccount);
+        });
     }
 }
 
